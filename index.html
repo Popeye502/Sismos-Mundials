@@ -127,10 +127,8 @@
 
         .pie { text-align: center; margin-top: 24px; font-size: 12px; color: var(--texto-sec); padding-bottom: 20px; }
 
-        /* Estilos para el mapa */
-        .leaflet-container { background: #1e293b !important; }
-        .mi-ubicacion { background: var(--verde); border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px var(--verde); }
-        .marker-sismo { border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+        /* Quitar letras pequeñas del mapa */
+        .leaflet-control-attribution { display: none !important; }
     </style>
 </head>
 <body>
@@ -240,12 +238,13 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // === INICIALIZAR MAPA REAL ===
+        // === MAPA REAL SIN CLAVES API ===
         const mapa = L.map('mapa', { zoomControl: true }).setView([15, -90], 2);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap contributors © CARTO',
+        
+        // Usamos OpenStreetMap — funciona sin claves
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
-            minZoom: 1.5
+            minZoom: 1
         }).addTo(mapa);
 
         let miMarcador = null;
@@ -301,21 +300,21 @@
         function agregarMiUbicacion() {
             if (!miLat && miLat !== 0) return;
             const iconoMiPos = L.divIcon({
-                className: 'mi-ubicacion-marker',
-                html: '<div class="mi-ubicacion"></div>',
-                iconSize: [14, 14],
-                iconAnchor: [7, 7]
+                className: '',
+                html: '<div style="width:16px;height:16px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 0 10px #22c55e;"></div>',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
             });
             miMarcador = L.marker([miLat, miLon], { icon: iconoMiPos }).addTo(mapa);
-            miMarcador.bindPopup('<strong>Tu ubicación</strong>').openPopup();
+            miMarcador.bindPopup('<strong>Tu ubicación</strong>');
         }
 
         function agregarMarcadorSismo(lat, lon, mag, lugar) {
             const color = mag >= 6 ? '#ef4444' : mag >= 5 ? '#f97316' : '#eab308';
             const tamano = 10 + (mag * 3);
             const iconoSismo = L.divIcon({
-                className: 'marker-sismo-wrapper',
-                html: `<div class="marker-sismo" style="width:${tamano}px;height:${tamano}px;background:${color};"></div>`,
+                className: '',
+                html: `<div style="width:${tamano}px;height:${tamano}px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>`,
                 iconSize: [tamano, tamano],
                 iconAnchor: [tamano/2, tamano/2]
             });
