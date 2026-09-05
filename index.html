@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#0f172a">
     <title>Alerta Sismos Mundial</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
         :root {
@@ -53,20 +54,7 @@
 
         .mapa-box { background: var(--tarjeta); border-radius: var(--borde-redondo); padding: 16px; margin-bottom: 20px; }
         .mapa-titulo { font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .mapa-fondo {
-            width: 100%; height: 180px; background: linear-gradient(180deg, #1e3a5f, #0f172a);
-            border-radius: 10px; position: relative; overflow: hidden; border: 1px solid var(--borde);
-        }
-        .punto-sismo {
-            position: absolute; width: 10px; height: 10px; border-radius: 50%;
-            transform: translate(-50%, -50%); z-index: 2;
-            animation: parpadeo 2s infinite;
-        }
-        .mi-punto {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 14px; height: 14px; background: var(--verde); border-radius: 50%;
-            border: 2px solid white; z-index: 3; box-shadow: 0 0 10px var(--verde);
-        }
+        #mapa { width: 100%; height: 280px; border-radius: 10px; overflow: hidden; }
 
         .lista-titulo { font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
         .sismo-card {
@@ -138,6 +126,11 @@
         .alerta-mag { font-size: 32px; font-weight: 800; margin: 6px 0; }
 
         .pie { text-align: center; margin-top: 24px; font-size: 12px; color: var(--texto-sec); padding-bottom: 20px; }
+
+        /* Estilos para el mapa */
+        .leaflet-container { background: #1e293b !important; }
+        .mi-ubicacion { background: var(--verde); border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px var(--verde); }
+        .marker-sismo { border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -179,9 +172,7 @@
 
         <div class="mapa-box">
             <h3 class="mapa-titulo"><i class="fa-solid fa-map-location-dot"></i> Mapa Mundial</h3>
-            <div class="mapa-fondo" id="mapa">
-                <div class="mi-punto" id="mi-punto"></div>
-            </div>
+            <div id="mapa"></div>
         </div>
 
         <div id="alertas"></div>
@@ -247,7 +238,19 @@
         <source src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-warning-1509.mp3" type="audio/mpeg">
     
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // === INICIALIZAR MAPA REAL ===
+        const mapa = L.map('mapa', { zoomControl: true }).setView([15, -90], 2);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors © CARTO',
+            maxZoom: 18,
+            minZoom: 1.5
+        }).addTo(mapa);
+
+        let miMarcador = null;
+        const marcadoresSismos = {};
+
         function toggle(id) {
             const m = document.getElementById(id);
             const f = document.getElementById('flecha-' + id);
@@ -269,8 +272,6 @@
         const elAlertas = document.getElementById('alertas');
         const elLista = document.getElementById('lista');
         const elUltima = document.getElementById('ultima');
-        const elMapa = document.getElementById('mapa');
-        const elMiPunto = document.getElementById('mi-punto');
         const elAudio = document.getElementById('alerta-audio');
         const elBtnSonido = document.getElementById('btn-sonido');
         const elStatMayor = document.getElementById('stat-mayor');
@@ -284,40 +285,46 @@
                         miLat = pos.coords.latitude;
                         miLon = pos.coords.longitude;
                         elUbicacion.innerHTML = `<i class="fa-solid fa-location-dot"></i> ${miLat.toFixed(2)}°, ${miLon.toFixed(2)}°`;
-                        actualizarMiPunto();
+                        mapa.setView([miLat, miLon], 4);
+                        agregarMiUbicacion();
                     },
                     () => {
                         elUbicacion.innerHTML = `<i class="fa-solid fa-globe"></i> Mostrando sismos del mundo`;
-                        elMiPunto.style.display = 'none';
                     },
                     { timeout: 5000, maximumAge: 300000 }
                 );
             } else {
                 elUbicacion.innerHTML = `<i class="fa-solid fa-globe"></i> Mostrando sismos del mundo`;
-                elMiPunto.style.display = 'none';
             }
         }
 
-        function coordAMapa(lat, lon) {
-            const x = ((lon + 180) / 360) * 100;
-            const y = ((90 - lat) / 180) * 100;
-            return { x: Math.max(5, Math.min(95, x)), y: Math.max(5, Math.min(95, y)) };
-        }
-        function actualizarMiPunto() {
+        function agregarMiUbicacion() {
             if (!miLat && miLat !== 0) return;
-            const p = coordAMapa(miLat, miLon);
-            elMiPunto.style.left = p.x + '%';
-            elMiPunto.style.top = p.y + '%';
+            const iconoMiPos = L.divIcon({
+                className: 'mi-ubicacion-marker',
+                html: '<div class="mi-ubicacion"></div>',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+            miMarcador = L.marker([miLat, miLon], { icon: iconoMiPos }).addTo(mapa);
+            miMarcador.bindPopup('<strong>Tu ubicación</strong>').openPopup();
         }
-        function agregarPuntoMapa(lat, lon, mag) {
-            const p = coordAMapa(lat, lon);
-            const punto = document.createElement('div');
-            punto.className = 'punto-sismo';
-            punto.style.left = p.x + '%';
-            punto.style.top = p.y + '%';
-            punto.style.background = mag >= 6 ? '#ef4444' : mag >= 5 ? '#f97316' : '#eab308';
-            elMapa.appendChild(punto);
-            while (elMapa.children.length > 15) elMapa.removeChild(elMapa.children[1]);
+
+        function agregarMarcadorSismo(lat, lon, mag, lugar) {
+            const color = mag >= 6 ? '#ef4444' : mag >= 5 ? '#f97316' : '#eab308';
+            const tamano = 10 + (mag * 3);
+            const iconoSismo = L.divIcon({
+                className: 'marker-sismo-wrapper',
+                html: `<div class="marker-sismo" style="width:${tamano}px;height:${tamano}px;background:${color};"></div>`,
+                iconSize: [tamano, tamano],
+                iconAnchor: [tamano/2, tamano/2]
+            });
+            const key = `${lat.toFixed(2)}-${lon.toFixed(2)}-${mag}`;
+            if (!marcadoresSismos[key]) {
+                const marcador = L.marker([lat, lon], { icon: iconoSismo }).addTo(mapa);
+                marcador.bindPopup(`<strong>M ${mag}</strong><br>${lugar}`);
+                marcadoresSismos[key] = marcador;
+            }
         }
 
         function distanciaKm(lat1, lon1, lat2, lon2) {
@@ -412,7 +419,7 @@
                 elLista.innerHTML = `
                     <div class="aviso aviso-alerta">
                         <i class="fa-solid fa-triangle-exclamation"></i> No se pudo conectar.<br>
-                        <small>Para ver datos reales sube la app a Netlify o Vercel.</small>
+                        <small>Revisa tu conexión e intenta nuevamente.</small>
                     </div>
                 `;
             }
@@ -432,7 +439,7 @@
             actualizarStats();
             elContador.textContent = contador;
 
-            agregarPuntoMapa(lat, lon, mag);
+            agregarMarcadorSismo(lat, lon, mag, lugar);
 
             if (sonidoOn && ((cerca && mag >= 4.5) || mag >= 6)) {
                 elAudio.currentTime = 0;
