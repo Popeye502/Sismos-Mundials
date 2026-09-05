@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <title>Alerta Sismos Mundial</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        :root {
+            --fondo: #0f172a; --tarjeta: #1e293b; --borde: #334155;
+            --texto: #f8fafc; --texto-sec: #94a3b8;
+            --verde: #22c55e; --amarillo: #eab308; --naranja: #f97316; --rojo: #ef4444; --azul: #3b82f6;
+            --borde-redondo: 12px;
+        }
+        body {
+            background: var(--fondo); color: var(--texto); min-height: 100vh;
+            padding: 16px; line-height: 1.5;
+        }
+        .container { max-width: 620px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--borde); }
+        h1 {
+            font-size: 24px; font-weight: 800; color: var(--rojo);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+
+        .ubicacion {
+            background: var(--tarjeta); padding: 14px 16px; border-radius: var(--borde-redondo);
+            margin-bottom: 16px; border-left: 4px solid var(--verde);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+
+        .barra-estado {
+            background: var(--tarjeta); padding: 16px; border-radius: var(--borde-redondo);
+            margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .estado-lado { display: flex; align-items: center; gap: 10px; }
+        .punto { width: 12px; height: 12px; border-radius: 50%; background: var(--texto-sec); }
+        .punto.conectado { background: var(--verde); box-shadow: 0 0 8px var(--verde); }
+        .punto.sin-conexion { background: var(--rojo); }
+        .punto.cargando { background: var(--amarillo); animation: parpadeo 1s infinite; }
+        @keyframes parpadeo { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+        .contador { text-align: right; }
+        .numero { font-size: 22px; font-weight: 700; }
+        .etiqueta { font-size: 12px; color: var(--texto-sec); }
+
+        .fila-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+        .stat-card { background: var(--tarjeta); padding: 16px 12px; border-radius: var(--borde-redondo); text-align: center; }
+        .stat-valor { font-size: 20px; font-weight: 700; color: var(--azul); margin-bottom: 4px; }
+        .stat-nombre { font-size: 13px; color: var(--texto-sec); }
+
+        .mapa-box { background: var(--tarjeta); border-radius: var(--borde-redondo); padding: 16px; margin-bottom: 20px; }
+        .mapa-titulo { font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .mapa-fondo {
+            width: 100%; height: 180px; background: linear-gradient(180deg, #1e3a5f, #0f172a);
+            border-radius: 10px; position: relative; overflow: hidden; border: 1px solid var(--borde);
+        }
+        .punto-sismo {
+            position: absolute; width: 10px; height: 10px; border-radius: 50%;
+            transform: translate(-50%, -50%); z-index: 2;
+            animation: parpadeo 2s infinite;
+        }
+        .mi-punto {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 14px; height: 14px; background: var(--verde); border-radius: 50%;
+            border: 2px solid white; z-index: 3; box-shadow: 0 0 10px var(--verde);
+        }
+
+        .lista-titulo { font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .sismo-card {
+            background: var(--tarjeta); border-radius: var(--borde-redondo); padding: 14px 16px;
+            margin-bottom: 10px; border-left: 4px solid;
+        }
+        .borde-verde { border-left-color: var(--verde); }
+        .borde-amarillo { border-left-color: var(--amarillo); }
+        .borde-naranja { border-left-color: var(--naranja); }
+        .borde-rojo { border-left-color: var(--rojo); }
+        .sismo-fila { display: flex; justify-content: space-between; align-items: center; }
+        .sismo-mag { font-size: 22px; font-weight: 700; }
+        .sismo-info { flex: 1; margin-left: 12px; }
+        .sismo-lugar { font-size: 14px; }
+        .sismo-detalle { font-size: 12px; color: var(--texto-sec); margin-top: 4px; }
+        .etiqueta { font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+        .etiqueta-cerca { background: rgba(239,68,68,0.2); color: #fca5a5; }
+        .etiqueta-mundo { background: rgba(59,130,246,0.2); color: #93c5fd; }
+        .vacio { text-align: center; padding: 30px; color: var(--texto-sec); }
+        .aviso { text-align: center; padding: 20px; border-radius: var(--borde-redondo); margin-bottom: 16px; }
+        .aviso-alerta { background: rgba(239,68,68,0.1); border: 1px solid var(--rojo); color: #fca5a5; }
+
+        .menu { background: var(--tarjeta); border-radius: var(--borde-redondo); margin-bottom: 12px; overflow: hidden; }
+        .menu-boton {
+            width: 100%; background: transparent; border: none; color: var(--texto);
+            padding: 16px; text-align: left; font-size: 15px; font-weight: 500;
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+        }
+        .flecha { transition: transform 0.3s; }
+        .flecha.girada { transform: rotate(180deg); }
+        .menu-contenido {
+            max-height: 0; overflow: hidden; transition: max-height 0.3s ease;
+            border-top: 1px solid var(--borde);
+        }
+        .menu-contenido.abierto { max-height: 500px; padding: 16px; }
+
+        .fila { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+        label { font-size: 14px; }
+        input {
+            background: var(--fondo); color: white; border: 1px solid var(--borde);
+            border-radius: 8px; padding: 8px 12px; width: 100px; text-align: center;
+        }
+        .btn {
+            border: none; border-radius: 10px; padding: 12px 16px;
+            font-size: 14px; font-weight: 500; cursor: pointer; width: 100%;
+            margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-verde { background: var(--verde); color: white; }
+        .btn-azul { background: var(--azul); color: white; }
+        .seguridad-lista { padding-left: 20px; }
+        .seguridad-lista li { margin-bottom: 8px; font-size: 14px; }
+
+        .alerta-mayor {
+            background: linear-gradient(135deg, #7f1d1d, #b91c1c);
+            border: 2px solid #fca5a5; border-radius: var(--borde-redondo);
+            padding: 20px; margin-bottom: 16px;
+        }
+        .alerta-media {
+            background: linear-gradient(135deg, #78350f, #b45309);
+            border: 2px solid #fdba74; border-radius: var(--borde-redondo);
+            padding: 16px; margin-bottom: 14px;
+        }
+        .alerta-mundo {
+            background: linear-gradient(135deg, #1e3a5f, #1d4ed8);
+            border: 2px solid #93c5fd; border-radius: var(--borde-redondo);
+            padding: 14px; margin-bottom: 12px;
+        }
+        .alerta-titulo { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+        .alerta-mag { font-size: 32px; font-weight: 800; margin: 6px 0; }
+
+        .pie { text-align: center; margin-top: 24px; font-size: 12px; color: var(--texto-sec); padding-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fa-solid fa-globe"></i> Alerta Sismos Mundial</h1>
+        </header>
+
+        <div class="ubicacion" id="ubicacion">
+            <i class="fa-solid fa-location-dot"></i>
+            <span>Detectando ubicación...</span>
+        </div>
+
+        <div class="barra-estado">
+            <div class="estado-lado">
+                <span class="punto cargando" id="punto"></span>
+                <span id="estado">Iniciando...</span>
+            </div>
+            <div class="contador">
+                <div class="numero" id="contador">0</div>
+                <div class="etiqueta">sismos detectados</div>
+            </div>
+        </div>
+
+        <div class="fila-stats">
+            <div class="stat-card">
+                <div class="stat-valor" id="stat-mayor">—</div>
+                <div class="stat-nombre">Mayor magnitud</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-valor" id="stat-promedio">—</div>
+                <div class="stat-nombre">Promedio</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-valor" id="stat-cercano">—</div>
+                <div class="stat-nombre">Más cercano (km)</div>
+            </div>
+        </div>
+
+        <div class="mapa-box">
+            <h3 class="mapa-titulo"><i class="fa-solid fa-map-location-dot"></i> Mapa Mundial</h3>
+            <div class="mapa-fondo" id="mapa">
+                <div class="mi-punto" id="mi-punto"></div>
+            </div>
+        </div>
+
+        <div id="alertas"></div>
+
+        <h3 class="lista-titulo"><i class="fa-solid fa-list"></i> Últimos sismos del mundo</h3>
+        <div id="lista">
+            <p class="vacio">Esperando datos...</p>
+        </div>
+
+        <div class="menu">
+            <button class="menu-boton" onclick="toggle('menu-config')">
+                <span><i class="fa-solid fa-gear"></i> Configuración</span>
+                <i class="fa-solid fa-chevron-down flecha" id="flecha-menu-config"></i>
+            </button>
+            <div class="menu-contenido" id="menu-config">
+                <div class="fila">
+                    <label>Mínima magnitud:</label>
+                    <input type="number" id="min-mag" value="4.5" step="0.1" min="1">
+                </div>
+                <div class="fila">
+                    <label>Distancia máxima (km):</label>
+                    <input type="number" id="max-dist" value="1000" step="50" min="50">
+                </div>
+                <button class="btn btn-verde" onclick="guardarConfig()">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar
+                </button>
+                <button class="btn btn-azul" id="btn-sonido" onclick="alternarSonido()">
+                    <i class="fa-solid fa-volume-high"></i> Sonido: ON
+                </button>
+                <button class="btn btn-azul" onclick="activarNotifs()">
+                    <i class="fa-solid fa-bell"></i> Notificaciones
+                </button>
+                <button class="btn btn-azul" onclick="cargarDatos()">
+                    <i class="fa-solid fa-refresh"></i> Recargar
+                </button>
+            </div>
+        </div>
+
+        <div class="menu">
+            <button class="menu-boton" onclick="toggle('menu-seg')">
+                <span><i class="fa-solid fa-shield-halved"></i> Qué hacer en un sismo</span>
+                <i class="fa-solid fa-chevron-down flecha" id="flecha-menu-seg"></i>
+            </button>
+            <div class="menu-contenido" id="menu-seg">
+                <ul class="seguridad-lista">
+                    <li><strong>Agáchate</strong> — baja al suelo</li>
+                    <li><strong>Cúbrete</strong> — protege cabeza y cuello</li>
+                    <li><strong>Aférrate</strong> — sostente firme</li>
+                    <li>Aléjate de ventanas y objetos altos</li>
+                    <li>No uses ascensores</li>
+                    <li>Si estás afuera: busca espacio abierto</li>
+                    <li>Cerca del mar: sube a zona alta</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="pie">
+            Última actualización: <span id="ultima">—</span>
+        </div>
+    </div>
+
+    <audio id="alerta-audio" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-warning-1509.mp3" type="audio/mpeg">
+    
+
+    <script>
+        function toggle(id) {
+            const m = document.getElementById(id);
+            const f = document.getElementById('flecha-' + id);
+            m.classList.toggle('abierto');
+            f.classList.toggle('girada');
+        }
+
+        let miLat = null, miLon = null;
+        let minMag = 4.5, maxDist = 1000;
+        let sonidoOn = true, notifsOn = false;
+        let contador = 0, mayorMag = 0, sumaMag = 0, masCercano = Infinity;
+        let ultimaFecha = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        const procesados = new Set();
+
+        const elUbicacion = document.getElementById('ubicacion');
+        const elPunto = document.getElementById('punto');
+        const elEstado = document.getElementById('estado');
+        const elContador = document.getElementById('contador');
+        const elAlertas = document.getElementById('alertas');
+        const elLista = document.getElementById('lista');
+        const elUltima = document.getElementById('ultima');
+        const elMapa = document.getElementById('mapa');
+        const elMiPunto = document.getElementById('mi-punto');
+        const elAudio = document.getElementById('alerta-audio');
+        const elBtnSonido = document.getElementById('btn-sonido');
+        const elStatMayor = document.getElementById('stat-mayor');
+        const elStatProm = document.getElementById('stat-promedio');
+        const elStatCercano = document.getElementById('stat-cercano');
+
+        function iniciarUbicacion() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        miLat = pos.coords.latitude;
+                        miLon = pos.coords.longitude;
+                        elUbicacion.innerHTML = `<i class="fa-solid fa-location-dot"></i> ${miLat.toFixed(2)}°, ${miLon.toFixed(2)}°`;
+                        actualizarMiPunto();
+                    },
+                    () => {
+                        elUbicacion.innerHTML = `<i class="fa-solid fa-globe"></i> Mostrando sismos del mundo`;
+                        elMiPunto.style.display = 'none';
+                    },
+                    { timeout: 5000, maximumAge: 300000 }
+                );
+            } else {
+                elUbicacion.innerHTML = `<i class="fa-solid fa-globe"></i> Mostrando sismos del mundo`;
+                elMiPunto.style.display = 'none';
+            }
+        }
+
+        function coordAMapa(lat, lon) {
+            const x = ((lon + 180) / 360) * 100;
+            const y = ((90 - lat) / 180) * 100;
+            return { x: Math.max(5, Math.min(95, x)), y: Math.max(5, Math.min(95, y)) };
+        }
+        function actualizarMiPunto() {
+            if (!miLat && miLat !== 0) return;
+            const p = coordAMapa(miLat, miLon);
+            elMiPunto.style.left = p.x + '%';
+            elMiPunto.style.top = p.y + '%';
+        }
+        function agregarPuntoMapa(lat, lon, mag) {
+            const p = coordAMapa(lat, lon);
+            const punto = document.createElement('div');
+            punto.className = 'punto-sismo';
+            punto.style.left = p.x + '%';
+            punto.style.top = p.y + '%';
+            punto.style.background = mag >= 6 ? '#ef4444' : mag >= 5 ? '#f97316' : '#eab308';
+            elMapa.appendChild(punto);
+            while (elMapa.children.length > 15) elMapa.removeChild(elMapa.children[1]);
+        }
+
+        function distanciaKm(lat1, lon1, lat2, lon2) {
+            if (!lat1 && lat1 !== 0) return null;
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+            return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        }
+        function formatearHora(ms) {
+            return new Date(ms).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+        }
+        function alternarSonido() {
+            sonidoOn = !sonidoOn;
+            elBtnSonido.innerHTML = sonidoOn ? '<i class="fa-solid fa-volume-high"></i> Sonido: ON' : '<i class="fa-solid fa-volume-xmark"></i> Sonido: OFF';
+            elBtnSonido.style.background = sonidoOn ? '#3b82f6' : '#ef4444';
+        }
+        function activarNotifs() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(p => {
+                    notifsOn = p === 'granted';
+                    alert(notifsOn ? '✅ Notificaciones activadas' : '⚠️ Denegadas');
+                });
+            } else alert('No soportado');
+        }
+        function notificar(titulo, cuerpo) {
+            if (notifsOn && Notification.permission === 'granted') {
+                new Notification('Alerta Sismos — ' + titulo, { body: cuerpo });
+            }
+        }
+        function guardarConfig() {
+            minMag = parseFloat(document.getElementById('min-mag').value);
+            maxDist = parseInt(document.getElementById('max-dist').value);
+            localStorage.setItem('minMag', minMag);
+            localStorage.setItem('maxDist', maxDist);
+            alert(`✅ Guardado:\nMagnitud ≥ ${minMag}\nDistancia ≤ ${maxDist} km`);
+        }
+        function cargarConfig() {
+            const m = localStorage.getItem('minMag');
+            const d = localStorage.getItem('maxDist');
+            if (m) { minMag = parseFloat(m); document.getElementById('min-mag').value = minMag; }
+            if (d) { maxDist = parseInt(d); document.getElementById('max-dist').value = maxDist; }
+        }
+        function actualizarStats() {
+            elStatMayor.textContent = mayorMag || '—';
+            elStatProm.textContent = contador ? (sumaMag/contador).toFixed(1) : '—';
+            elStatCercano.textContent = masCercano === Infinity ? '—' : masCercano;
+        }
+        function claseBorde(mag) {
+            return mag >= 6 ? 'borde-rojo' : mag >= 5 ? 'borde-naranja' : mag >= 4 ? 'borde-amarillo' : 'borde-verde';
+        }
+
+        async function cargarDatos() {
+            elPunto.className = 'punto cargando';
+            elEstado.textContent = 'Conectando...';
+
+            try {
+                const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${ultimaFecha}&minmagnitude=${minMag}&orderby=time&limit=20`;
+                
+                const controlador = new AbortController();
+                setTimeout(() => controlador.abort(), 10000);
+                
+                const res = await fetch(url, { 
+                    signal: controlador.signal,
+                    cache: 'no-store'
+                });
+
+                if (!res.ok) throw new Error('No se pudo conectar');
+                const datos = await res.json();
+
+                if (datos.features && datos.features.length > 0) {
+                    datos.features.reverse().forEach(sismo => {
+                        const cod = sismo.properties.code;
+                        if (!procesados.has(cod)) {
+                            procesados.add(cod);
+                            procesarSismo(sismo);
+                            const fecha = new Date(sismo.properties.time).toISOString();
+                            if (fecha > ultimaFecha) ultimaFecha = fecha;
+                        }
+                    });
+                    elPunto.className = 'punto conectado';
+                    elEstado.textContent = 'Conectado';
+                } else {
+                    elPunto.className = 'punto conectado';
+                    elEstado.textContent = 'Sin sismos nuevos';
+                    elLista.innerHTML = '<p class="vacio">No hay sismos recientes con los filtros actuales</p>';
+                }
+            } catch (e) {
+                elPunto.className = 'punto sin-conexion';
+                elEstado.textContent = 'Sin conexión';
+                elLista.innerHTML = `
+                    <div class="aviso aviso-alerta">
+                        <i class="fa-solid fa-triangle-exclamation"></i> No se pudo conectar.<br>
+                        <small>Para ver datos reales sube la app a Netlify o Vercel.</small>
+                    </div>
+                `;
+            }
+            elUltima.textContent = formatearHora(Date.now());
+        }
+
+        function procesarSismo(sismo) {
+            const p = sismo.properties, g = sismo.geometry.coordinates;
+            const mag = p.mag, lugar = p.place, hora = p.time;
+            const lat = g[1], lon = g[0];
+            const dist = distanciaKm(miLat, miLon, lat, lon);
+            const cerca = dist !== null && dist <= maxDist;
+
+            contador++; sumaMag += mag;
+            if (mag > mayorMag) mayorMag = mag;
+            if (dist !== null && dist < masCercano) masCercano = dist;
+            actualizarStats();
+            elContador.textContent = contador;
+
+            agregarPuntoMapa(lat, lon, mag);
+
+            if (sonidoOn && ((cerca && mag >= 4.5) || mag >= 6)) {
+                elAudio.currentTime = 0;
+                elAudio.play().catch(() => {});
+            }
+            if ((cerca && mag >= 5) || mag >= 6) {
+                notificar(`M${mag}`, `${lugar} — ${dist ? dist+' km' : 'Distancia desconocida'}`);
+            }
+
+            if (cerca && mag >= 5) {
+                const alerta = document.createElement('div');
+                alerta.className = mag >= 6 ? 'alerta-mayor' : 'alerta-media';
+                alerta.innerHTML = `
+                    <div class="alerta-titulo">${mag >= 6 ? '🚨 ¡SISMO FUERTE CERCANO!' : '⚠️ Sismo cercano'}</div>
+                    <div class="alerta-mag">M ${mag}</div>
+                    <div>📍 ${lugar}</div>
+                    <div>📏 ${dist} km de ti</div>
+                    <div>🕒 ${formatearHora(hora)}</div>
+                `;
+                elAlertas.prepend(alerta);
+                setTimeout(() => alerta.remove(), mag >= 6 ? 60000 : 30000);
+            } else if (mag >= 6) {
+                const alerta = document.createElement('div');
+                alerta.className = 'alerta-mundo';
+                alerta.innerHTML = `
+                    <div class="alerta-titulo">🌎 Sismo fuerte en el mundo</div>
+                    <div class="alerta-mag">M ${mag}</div>
+                    <div>📍 ${lugar}</div>
+                    <div>📏 ${dist ? dist+' km de ti' : 'Distancia desconocida'}</div>
+                    <div>🕒 ${formatearHora(hora)}</div>
+                `;
+                elAlertas.prepend(alerta);
+                setTimeout(() => alerta.remove(), 20000);
+            }
+
+            const tarjeta = document.createElement('div');
+            tarjeta.className = `sismo-card ${claseBorde(mag)}`;
+            tarjeta.innerHTML = `
+                <div class="sismo-fila">
+                    <span class="sismo-mag">${mag}</span>
+                    <div class="sismo-info">
+                        <div class="sismo-lugar">${lugar}</div>
+                        <div class="sismo-detalle">
+                            📏 ${dist !== null ? dist+' km' : '—'} · 🕒 ${formatearHora(hora)}
+                        </div>
+                    </div>
+                    ${cerca ? '<span class="etiqueta etiqueta-cerca">CERCA</span>' : '<span class="etiqueta etiqueta-mundo">MUNDIAL</span>'}
+                </div>
+            `;
+
+            if (elLista.children.length === 1 && elLista.children[0].classList.contains('vacio')) {
+                elLista.innerHTML = '';
+            }
+            elLista.prepend(tarjeta);
+            while (elLista.children.length > 15) elLista.removeChild(elLista.lastChild);
+        }
+
+        cargarConfig();
+        iniciarUbicacion();
+        cargarDatos();
+        setInterval(cargarDatos, 60000);
+    </script>
+</body>
+</html>
